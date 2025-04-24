@@ -18,30 +18,31 @@ feature_columns = joblib.load(FEATURE_PATH)
 # Map churn values for better labeling
 df['Churn'] = df['Churn'].map({0: "No", 1: "Yes"})
 
-# Set Streamlit page
-st.set_page_config(page_title="Customer Churn Dashboard", layout="wide")
+# Page config
+st.set_page_config(page_title="Customer Churn Dashboard", layout="centered", initial_sidebar_state="collapsed")
 st.title("📊 Customer Churn Dashboard")
 tab1, tab2 = st.tabs(["🔮 Prediction", "📈 Insights"])
 
 # === PREDICTION TAB ===
 with tab1:
     st.header("Predict Customer Churn")
-    tenure = st.number_input("Tenure (months)", min_value=0, max_value=72, value=12)
-    monthly_charges = st.number_input("Monthly Charges", min_value=0.0, max_value=200.0, value=70.0)
-    partner = st.selectbox("Has Partner?", ["Yes", "No"])
-    dependents = st.selectbox("Has Dependents?", ["Yes", "No"])
-    paperless_billing = st.selectbox("Paperless Billing?", ["Yes", "No"])
-    phone_service = st.selectbox("Phone Service?", ["Yes", "No"])
-    contract_type = st.selectbox("Contract", ["Month-to-month", "One year", "Two year"])
-    payment_method = st.selectbox("Payment Method", ["Electronic check", "Mailed check", "Bank transfer (automatic)", "Credit card (automatic)"])
-    internet_service = st.selectbox("Internet Service", ["DSL", "Fiber optic", "No"])
-    online_security = st.selectbox("Online Security", ["Yes", "No", "No internet service"])
-    online_backup = st.selectbox("Online Backup", ["Yes", "No", "No internet service"])
-    device_protection = st.selectbox("Device Protection", ["Yes", "No", "No internet service"])
-    tech_support = st.selectbox("Tech Support", ["Yes", "No", "No internet service"])
-    streaming_tv = st.selectbox("Streaming TV", ["Yes", "No", "No internet service"])
-    streaming_movies = st.selectbox("Streaming Movies", ["Yes", "No", "No internet service"])
-    multiple_lines = st.selectbox("Multiple Lines", ["Yes", "No", "No phone service"])
+    tenure = st.slider("Tenure (months)", 0, 72, 12)
+    monthly_charges = st.slider("Monthly Charges", 0.0, 200.0, 70.0, step=5.0)
+
+    partner = st.radio("Has Partner?", ["Yes", "No"], horizontal=True, key="partner")
+    dependents = st.radio("Has Dependents?", ["Yes", "No"], horizontal=True, key="dependents")
+    paperless_billing = st.radio("Paperless Billing?", ["Yes", "No"], horizontal=True, key="paperless_billing")
+    phone_service = st.radio("Phone Service?", ["Yes", "No"], horizontal=True, key="phone_service")
+    contract_type = st.radio("Contract", ["Month-to-month", "One year", "Two year"], horizontal=True, key="contract_type")
+    payment_method = st.radio("Payment Method", ["Electronic check", "Mailed check", "Bank transfer (automatic)", "Credit card (automatic)"], key="payment_method")
+    internet_service = st.radio("Internet Service", ["DSL", "Fiber optic", "No"], horizontal=True, key="internet_service")
+    online_security = st.radio("Online Security", ["Yes", "No", "No internet service"], horizontal=True, key="online_security")
+    online_backup = st.radio("Online Backup", ["Yes", "No", "No internet service"], horizontal=True, key="online_backup")
+    device_protection = st.radio("Device Protection", ["Yes", "No", "No internet service"], horizontal=True, key="device_protection")
+    tech_support = st.radio("Tech Support", ["Yes", "No", "No internet service"], horizontal=True, key="tech_support")
+    streaming_tv = st.radio("Streaming TV", ["Yes", "No", "No internet service"], horizontal=True, key="streaming_tv")
+    streaming_movies = st.radio("Streaming Movies", ["Yes", "No", "No internet service"], horizontal=True, key="streaming_movies")
+    multiple_lines = st.radio("Multiple Lines", ["Yes", "No", "No phone service"], horizontal=True, key="multiple_lines")
 
     input_data = {
         'tenure': tenure,
@@ -75,8 +76,10 @@ with tab1:
 
     input_df = pd.DataFrame([input_data])
     input_df = input_df.reindex(columns=feature_columns, fill_value=0)
+
     if 'TotalCharges' in feature_columns:
         input_df['TotalCharges'] = input_df['MonthlyCharges'] * input_df['tenure']
+
     scale_cols = ['tenure', 'MonthlyCharges', 'TotalCharges'] if 'TotalCharges' in feature_columns else ['tenure', 'MonthlyCharges']
     input_df[scale_cols] = scaler.transform(input_df[scale_cols])
 
@@ -91,37 +94,45 @@ with tab1:
             st.success("✅ The customer is likely to stay.")
 
 # === INSIGHTS TAB ===
+# === INSIGHTS TAB ===
 with tab2:
-    st.header("📈 Churn Data Trends")
     st.metric("📊 Overall Churn Rate", f"{df['Churn'].value_counts(normalize=True).get('Yes', 0):.2%}")
 
-    col1, col2 = st.columns(2)
+    # Monthly Charges Histogram
+    st.subheader("💰 Monthly Charges Distribution")
+    fig1 = px.histogram(df, x="MonthlyCharges", color="Churn", barmode="overlay",
+                        color_discrete_map={"Yes": "royalblue", "No": "lightskyblue"},
+                        template="plotly_dark")
+    st.plotly_chart(fig1, use_container_width=True)
 
-    with col1:
-        st.subheader("💰 Monthly Charges Distribution")
-        fig1 = px.histogram(df, x="MonthlyCharges", color="Churn", barmode="overlay",
-                            color_discrete_map={"Yes": "royalblue", "No": "lightblue"},
-                            template="plotly_dark")
-        st.plotly_chart(fig1, use_container_width=True)
+    # Tenure by Churn (Boxplot)
+    st.subheader("⏳ Tenure by Churn")
+    fig2 = px.box(df, x="Churn", y="tenure", color="Churn",
+                  color_discrete_map={"Yes": "royalblue", "No": "lightskyblue"},
+                  template="plotly_dark")
+    st.plotly_chart(fig2, use_container_width=True)
 
-    with col2:
-        st.subheader("⏳ Tenure by Churn")
-        fig2 = px.box(df, x="Churn", y="tenure", color="Churn",
-                      color_discrete_map={"Yes": "royalblue", "No": "lightblue"},
-                      template="plotly_dark")
-        st.plotly_chart(fig2, use_container_width=True)
+    # Churn Rate by Contract Type
+    st.subheader("📄 Churn Rate by Contract Type")
+    churn_by_contract = df.groupby("Contract")["Churn"].apply(lambda x: (x == "Yes").mean()).reset_index()
+    fig3 = px.bar(churn_by_contract, x="Contract", y="Churn",
+                  color_discrete_sequence=["royalblue"], template="plotly_dark")
+    st.plotly_chart(fig3, use_container_width=True)
 
-    col3, col4 = st.columns(2)
+    # Churn Rate by Payment Method
+    st.subheader("💳 Churn Rate by Payment Method")
+    df['PaymentMethod'] = df.apply(lambda row: 
+        'Credit card (automatic)' if row['PaymentMethod_Credit card (automatic)'] else 
+        'Electronic check' if row['PaymentMethod_Electronic check'] else 
+        'Mailed check' if row['PaymentMethod_Mailed check'] else 
+        'Bank transfer (automatic)', axis=1)
+    churn_by_payment = df.groupby('PaymentMethod')['Churn'].value_counts(normalize=True).rename('Rate').reset_index()
+    fig_payment = px.bar(churn_by_payment[churn_by_payment['Churn'] == 'Yes'], x='PaymentMethod', y='Rate',
+                         title='💳 Churn Rate by Payment Method', color='Rate', color_continuous_scale='blues', template="plotly_dark")
+    st.plotly_chart(fig_payment, use_container_width=True)
 
-    with col3:
-        st.subheader("📄 Churn Rate by Contract Type")
-        churn_by_contract = df.groupby("Contract")["Churn"].apply(lambda x: (x == "Yes").mean()).reset_index()
-        fig3 = px.bar(churn_by_contract, x="Contract", y="Churn",
-                      color_discrete_sequence=["royalblue"], template="plotly_dark")
-        st.plotly_chart(fig3, use_container_width=True)
+    # Internet Service Pie Chart
+    st.subheader("📶 Internet Service Type Distribution")
+    fig4 = px.pie(df, names="InternetService", title="Internet Service Type", template="plotly_dark")
+    st.plotly_chart(fig4, use_container_width=True)
 
-    with col4:
-        st.subheader("📶 Internet Service Type Distribution")
-        fig4 = px.pie(df, names="InternetService", title="Internet Service Type",
-                      template="plotly_dark")
-        st.plotly_chart(fig4, use_container_width=True)
